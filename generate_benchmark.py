@@ -39,7 +39,7 @@ def get_dictionary(category):
         max_words = 50000
         filtered = lexique[lexique["nblettres"] <= 10]
     else:  # large
-        max_words = 110000
+        max_words = 100000
         filtered = lexique[lexique["nblettres"] <= 12]
 
     words = filtered["ortho"].dropna().drop_duplicates().sample(
@@ -222,7 +222,7 @@ def split_long_words(grid, max_len=13):
     return grid
 
 # ---------------------
-# 4. Détermination (simplifiée) des slots
+# 4. Détermination des slots
 # ---------------------
 
 def find_word_slots(grid):
@@ -232,6 +232,7 @@ def find_word_slots(grid):
     """
     slots = []
     size = len(grid)
+    slot_id = 1  # pour MiniZinc (1-based)
 
     # Horizontaux
     for i in range(size):
@@ -243,7 +244,14 @@ def find_word_slots(grid):
                     j += 1
                 length = j - start
                 if length >= 2:
-                    slots.append({"orientation": "H", "row": i, "col": start, "length": length})
+                    slots.append({
+                        "id": slot_id,
+                        "orientation": "H",
+                        "row": i,
+                        "col": start,
+                        "length": length
+                    })
+                    slot_id += 1
             else:
                 j += 1
 
@@ -257,14 +265,46 @@ def find_word_slots(grid):
                     i += 1
                 length = i - start
                 if length >= 2:
-                    slots.append({"orientation": "V", "row": start, "col": j, "length": length})
+                    slots.append({
+                        "id": slot_id,
+                        "orientation": "V",
+                        "row": start,
+                        "col": j,
+                        "length": length
+                    })
+                    slot_id += 1
             else:
                 i += 1
 
     return slots
 
 # ---------------------
-# 5. Génération d’une instance complète
+# 5. Calcul des intersections
+# ---------------------
+
+def compute_intersections(slots):
+    intersections = []
+    for s1 in slots:
+        for s2 in slots:
+            if s1["id"] < s2["id"]:  # éviter doublons
+                if s1["orientation"] != s2["orientation"]:
+                    for p1 in range(s1["length"]):
+                        for p2 in range(s2["length"]):
+                            r1 = s1["row"] + (p1 if s1["orientation"] == "V" else 0)
+                            c1 = s1["col"] + (p1 if s1["orientation"] == "H" else 0)
+                            r2 = s2["row"] + (p2 if s2["orientation"] == "V" else 0)
+                            c2 = s2["col"] + (p2 if s2["orientation"] == "H" else 0)
+                            if r1 == r2 and c1 == c2:
+                                intersections.append({
+                                    "s1": s1["id"],
+                                    "p1": p1 + 1,  # MiniZinc → 1-based
+                                    "s2": s2["id"],
+                                    "p2": p2 + 1
+                                })
+    return intersections
+
+# ---------------------
+# 6. Génération d’une instance complète
 # ---------------------
 def generate_instance(category, grid_size):
     dictionary = get_dictionary(category)
@@ -278,17 +318,63 @@ def generate_instance(category, grid_size):
         grid = split_long_words(grid, max_len=12)
     
     slots = find_word_slots(grid)
+    intersections = compute_intersections(slots)
 
     instance = {
         "category": category,
         "grid_size": grid_size,
         "grid": grid,
+        "slots": slots,
+        "intersections": intersections,
         "dictionary": dictionary
     }
     return instance
 
 # ---------------------
-# 6. Génération et sauvegarde du benchmark
+# 7. Mise en forme des données (MiniZinc)
+# ---------------------
+
+def generate_dzn(instance, dzn_path):
+    """
+    Génère un fichier .dzn à partir d'une instance de grille de mots fléchés.
+    """
+    slots = instance["slots"]
+    intersections = instance["intersections"]
+    dictionary = instance["dictionary"]
+
+    # --- Extraction des infos principales ---
+    n_slots = len(slots)
+    lengths = [slot["length"] for slot in slots]
+
+    n_intersections = len(intersections)
+    slot1 = [i["s1"] for i in intersections]
+    pos1 = [i["p1"] for i in intersections]
+    slot2 = [i["s2"] for i in intersections]
+    pos2 = [i["p2"] for i in intersections]
+
+    n_dict = len(dictionary)
+
+    # --- Construction du contenu .dzn ---
+    lines = [
+        f"N_SLOTS = {n_slots};",
+        f"LENGTHS = {lengths};",
+        f"N_INTERSECTIONS = {n_intersections};",
+        f"SLOT1 = {slot1};",
+        f"POS1 = {pos1};",
+        f"SLOT2 = {slot2};",
+        f"POS2 = {pos2};",
+        f"N_DICT = {n_dict};",
+        'DICT = [' + ', '.join(f'"{w}"' for w in dictionary) + '];'
+    ]
+
+    # --- Écriture dans le fichier .dzn ---
+    with open(dzn_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+
+# ---------------------
+# 8. Génération et sauvegarde du benchmark
 # ---------------------
 def generate_benchmark():
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -314,6 +400,10 @@ def generate_benchmark():
             filename = out_path / f"{category}_{i+1:03d}.json"
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(instance, f, ensure_ascii=False, indent=2)
+
+            # MiniZinc
+            filename = out_path / f"{category}_{i+1:03d}.dzn"
+            generate_dzn(instance, filename)
 
             slots = find_word_slots(instance["grid"])
             lengths = [s["length"] for s in slots]
