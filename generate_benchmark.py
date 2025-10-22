@@ -68,7 +68,7 @@ def expected_n_slots(grid_size, mu=7, sigma=2, fill_factor=0.8):
     """
     Estime le nombre moyen de slots pour une grille de taille grid_size.
     """
-    avg_len = mu 
+    avg_len = mu
     total_slots_h = (grid_size * grid_size) / avg_len * fill_factor
     total_slots_v = (grid_size * grid_size) / avg_len * fill_factor
     total_slots = int(total_slots_h + total_slots_v)
@@ -186,7 +186,7 @@ def split_long_words(grid, max_len=13):
     Parcourt la grille et coupe les mots trop longs en insérant un '#' au milieu.
     """
     size = len(grid)
-    
+
     # Horizontaux
     for i in range(size):
         j = 0
@@ -309,14 +309,14 @@ def compute_intersections(slots):
 def generate_instance(category, grid_size):
     dictionary = get_dictionary(category)
 
-    if category == "small" : 
+    if category == "small" :
         grid = generate_empty_grid(grid_size, mu=4, sigma = 1, max_len = 5)
-    elif category == "medium" : 
+    elif category == "medium" :
         grid = generate_empty_grid(grid_size, mu=6, sigma = 1, max_len = 10)
     else :
-        grid = generate_empty_grid(grid_size, mu=7, sigma = 2, max_len = 15) 
+        grid = generate_empty_grid(grid_size, mu=7, sigma = 2, max_len = 15)
         grid = split_long_words(grid, max_len=12)
-    
+
     slots = find_word_slots(grid)
     intersections = compute_intersections(slots)
 
@@ -411,7 +411,7 @@ def generate_benchmark():
 
         print(f"  ✓ {N_INSTANCES[category]} instances sauvegardées dans {out_path}/")
 
-    
+
     print("Répartition moyenne des tailles par catégorie :\n")
     for category, lengths in all_lengths.items():
         if not lengths:
