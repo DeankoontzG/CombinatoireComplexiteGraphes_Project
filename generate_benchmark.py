@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 # ---------------------
 # PARAMÈTRES GLOBAUX
 # ---------------------
-LEXIQUE_PATH = "data/lexique_filtre.parquet"
+LEXIQUE_PATH = "data/lexique_filtre_cleaned.parquet"
 OUTPUT_DIR = Path("instances")
 
 # Nombre d’instances à générer par catégorie
@@ -33,7 +33,7 @@ lexique["nblettres"] = lexique["nblettres"].astype(int)
 def get_dictionary(category):
     """Retourne un dictionnaire filtré selon la catégorie."""
     if category == "small":
-        max_words = 500
+        max_words = 7000
         filtered = lexique[lexique["nblettres"] <= 5]
     elif category == "medium":
         max_words = 50000
