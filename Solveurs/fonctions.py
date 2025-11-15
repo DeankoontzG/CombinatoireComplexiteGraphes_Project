@@ -17,97 +17,6 @@ def charger_grille(fichier_json):
     
     return grid, slots, intersections, dictionary
 
-def executeORTools(gridpath):
-
-    start_prep_time = time.perf_counter()
-
-    def word_to_int(word):
-        """Convertit un mot en deux entiers en le découpant en deux parts égales."""
-        mid = len(word) // 2  # Position du milieu du mot
-        part1 = word[:mid]  # Première moitié du mot
-        part2 = word[mid:]  # Deuxième moitié du mot
-
-        # Convertir chaque moitié en un entier, en concaténant les valeurs des lettres
-        part1_int = 0
-        for letter in part1:
-            part1_int = part1_int * 100 + (ord(letter) - ord('a') + 1)  # Multiplie par 100 pour ajouter la nouvelle valeur
-
-        part2_int = 0
-        for letter in part2:
-            part2_int = part2_int * 100 + (ord(letter) - ord('a') + 1)  # Multiplie par 100 pour ajouter la nouvelle valeur
-
-        return part1_int, part2_int
-
-    model = cp_model.CpModel()
-
-    grid, slots, intersections, dictionary = charger_grille(gridpath)
-
-    # Convertir les mots du dictionnaire en deux entiers par découpe
-    word_to_int_dict = {word: word_to_int(word) for word in dictionary}
-
-    # Créer des variables pour chaque moitié de chaque mot dans chaque slot
-    word_vars = {}
-    bool_vars = {}
-
-    for slot in slots:
-        word_vars[slot['id']] = []  # Liste des variables pour ce slot
-        bool_vars[slot['id']] = []  # Liste des booléens pour chaque mot dans ce slot
-
-        # Découpe du slot en 2 parties
-        mid = slot['length'] // 2
-        part1_length = mid
-        part2_length = slot['length'] - part1_length
-
-        # Créer des variables pour chaque lettre dans la partie 1
-        part1_vars = [model.NewIntVar(1, 26, f"part1_{slot['id']}_{i}") for i in range(part1_length)]
-        part2_vars = [model.NewIntVar(1, 26, f"part2_{slot['id']}_{i}") for i in range(part2_length)]
-
-        word_vars[slot['id']] = [part1_vars, part2_vars]
-
-
-        # Créer des variables booléennes pour chaque mot dans le dictionnaire
-        for word, (part1_values, part2_values) in word_to_int_dict.items():
-            if len(word) == slot['length']:  # Si la longueur du mot correspond à celle du slot
-                bool_var = model.NewBoolVar(f"word_{slot['id']}_{word}")
-                bool_vars[slot['id']].append((word, bool_var))  # Ajouter un tuple (mot, bool_var)
-
-    # Ajouter des contraintes pour chaque slot
-    for slot in slots:
-        word_length = slot['length']
-        part1_vars, part2_vars = word_vars[slot['id']]  # Séparer les deux parties
-        bools = bool_vars[slot['id']]
-
-        # Ajouter la contrainte qu'il faut exactement une variable booléenne vraie pour chaque slot
-        model.Add(sum(bools[i][1] for i in range(len(bools))) == 1)
-
-        # Pour chaque mot du dictionnaire, découper le mot et ajouter les contraintes d'égalité
-        for word, (part1_values, part2_values) in word_to_int_dict.items():
-            if len(word) == word_length:
-                
-                model.Add(part1_varsf"part1_{slot['id']}_{i}") == part1_values).OnlyEnforceIf(bool_vars[slot['id']][[w for w, bv in bools].index(word)][1])
-                model.Add(part1_vars == part2_values).OnlyEnforceIf(bool_vars[slot['id']][[w for w, bv in bools].index(word)][1])
-
-    # Ajouter les contraintes d'intersection
-    for intersection in intersections:
-        s1, p1, s2, p2 = intersection['s1'], intersection['p1'], intersection['s2'], intersection['p2']
-        model.Add(word_vars[s1][p1 - 1] == word_vars[s2][p2 - 1])
-
-    # Résoudre le problème
-    end_prep_time = time.perf_counter()
-    start_exec_time = time.perf_counter()
-
-    solver = cp_model.CpSolver()
-
-    # Durée d'exécution
-    end_exec_time = time.perf_counter()
-    exec_time = end_exec_time - start_exec_time
-    prep_time = end_prep_time - start_prep_time
-
-    status = solver.Solve(model)
-    print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Time Exec : {exec_time}; Time Prep : {prep_time}")
-
-    return status, exec_time, prep_time
-
 def clean_lexique(char, char_replacement):
     # Charger le fichier parquet existant
     df = pd.read_parquet('../../data/lexique_filtre_cleaned.parquet')
@@ -134,3 +43,102 @@ def status_name(status_code):
         return "Unknown"
     else:
         return "Unknown Status"
+
+def executeORTools(gridpath,  display_grid = False, timeout = 60.0):
+
+    start_prep_time = time.perf_counter()
+
+    model = cp_model.CpModel()
+
+    grid, slots, intersections, dictionary = charger_grille(gridpath)
+
+    # Dico pour stocker les variables de lettres pour chaque slot
+    word_vars = {}
+    # Doci pour stocker les variables booléennes (mot choisi)
+    bool_vars = {}
+
+    for slot in slots:
+        slot_id = slot['id']
+        slot_length = slot['length']
+        
+        # Une variable pour chaque lettre dans le slot. On définit le domaine, aka les valeurs que peuvent prendre ces variables.
+        letter_vars = [model.NewIntVar(1, 26, f"letter_{slot_id}_{i}") for i in range(slot_length)] 
+        word_vars[slot_id] = letter_vars 
+
+        bool_vars[slot_id] = [] 
+        
+        # On créé une variable booléenne pour chaque mot du dico de la bonne longueur
+        for word in dictionary:
+            if len(word) == slot_length:
+                bool_var = model.NewBoolVar(f"word_selected_{slot_id}_{word}")
+                bool_vars[slot_id].append((word, bool_var))
+
+    # --- 2. Ajout des Contraintes ---
+
+    # --- 2.a Les mots choisis doivent exister dans le Dico (AddAllowedAssignments) ---
+    
+    for slot in slots:
+        slot_id = slot['id']
+        slot_length = slot['length']
+        letter_vars = word_vars[slot_id]
+    
+        allowed_tuples = []
+        
+        for word in dictionary:
+            if len(word) == slot_length:
+                word_values = [(ord(letter) - ord('a') + 1) for letter in word]
+                allowed_tuples.append(word_values)
+        
+        if not allowed_tuples:
+            # Sécurité : S'il n'y a aucun mot de la bonne longueur, le problème est infaisable.
+            print(f"ATTENTION: Aucun mot trouvé pour le slot {slot_id}. Problème infaisable.")
+            model.Add(0 == 1) 
+            continue
+
+        model.AddAllowedAssignments(letter_vars, allowed_tuples)
+
+
+    # --- 2.b : Contraintes d'intersection (les lettres doivent être identiques)
+    for intersection in intersections:
+        s1, p1, s2, p2 = intersection['s1'], intersection['p1'], intersection['s2'], intersection['p2']
+        index_p1 = p1 - 1
+        index_p2 = p2 - 1
+        model.Add(word_vars[s1][index_p1] == word_vars[s2][index_p2])
+
+    # --- 3. Résolution du Problème ---
+    end_prep_time = time.perf_counter()
+    start_exec_time = time.perf_counter()
+
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = timeout # Notre Timeout
+
+    status = solver.Solve(model)
+
+    end_exec_time = time.perf_counter()
+    exec_time = end_exec_time - start_exec_time
+    prep_time = end_prep_time - start_prep_time
+
+    # Affichage du statut et des temps
+    print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Time Exec : {exec_time}; Time Prep : {prep_time}")
+
+    # OPTIONNEL : Afficher la solution trouvée
+    if (status == cp_model.OPTIMAL or status == cp_model.FEASIBLE) and display_grid:
+        print("\n--- SOLUTION ---")
+        for slot in slots:
+            slot_id = slot['id']
+            # Trouver le mot qui a été choisi
+            for word, bool_var in bool_vars[slot_id]:
+                if solver.Value(bool_var):
+                    # print(f"Slot {slot_id}: {word}")
+                    
+                    # On peut aussi reconstruire le mot à partir des variables de lettres (vérification)
+                    solved_word = "".join(
+                        chr(solver.Value(letter_var) + ord('a') - 1)
+                        for letter_var in word_vars[slot_id]
+                    )
+                    print(f"Slot {slot_id} (Length {slot['length']}): {solved_word}")
+                    break
+
+    return status, exec_time, prep_time
+
+
