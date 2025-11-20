@@ -544,7 +544,7 @@ def generate_benchmark():
         num_instances = N_INSTANCES[category]
         total_saved_instances = 0
 
-        for fill_factor in [0.8, 0.85, 0.90, 0.95, 1.0]:
+        for fill_factor in [0.6, 0.65, 0.7, 0.75, 0.8]:
             fill_factor_str = f"{fill_factor:.2f}"
                 
             sub_folder_name = f"fillfactor_{fill_factor_str}"

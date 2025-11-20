@@ -11,7 +11,7 @@ print("OR-Tools est installé correctement !")
 
 fill_factors = ["0.85"]
 base_instance_folder = "medium"
-num_instances = 10
+num_instances = 1
 
 results = {
     'fill_factor': [],

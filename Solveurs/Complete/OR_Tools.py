@@ -9,8 +9,8 @@ from Solveurs.fonctions import *
 
 print("OR-Tools est installé correctement !")
 
-fill_factors = ["0.85"]
-base_instance_folder = "medium"
+fill_factors = ["0.60", "0.65", "0.70", "0.75", "0.80"]
+base_instance_folder = "large"
 num_instances = 10
 
 results = {
@@ -55,7 +55,7 @@ for fill_factor in fill_factors:
             continue
 
         if i == num_instances: # Affiche la grille uniquement pour la dernière instance du sous-dossier
-             status, exec_time, prep_time = executeORTools(instance_path, display_grid=True)
+             status, exec_time, prep_time = executeORTools(instance_path, display_grid=True, timeout=120)
              status_a, exec_time_a, prep_time_a = 0,0,0
              status_b, exec_time_b, prep_time_b = 0,0,0
              status_c, exec_time_c, prep_time_c = 0,0,0
@@ -124,9 +124,9 @@ fig, ax1 = plt.subplots(figsize=(12, 7))
 
 strategies = [
     ('avg_exec_time', 'Standard', 'black', 'o'),
-    ('avg_exec_time_a', 'IntersectionsFirst', 'red', 's'),
-    ('avg_exec_time_b', 'LongestWordsFirst', 'blue', '^'),
-    ('avg_exec_time_c', 'MostIntersectionsFirst', 'green', 'd')
+    # ('avg_exec_time_a', 'IntersectionsFirst', 'red', 's'),
+    # ('avg_exec_time_b', 'LongestWordsFirst', 'blue', '^'),
+    # ('avg_exec_time_c', 'MostIntersectionsFirst', 'green', 'd')
 ]
 
 ax1.set_xlabel('Facteur de Remplissage (Fill Factor)')
