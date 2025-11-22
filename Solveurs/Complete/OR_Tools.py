@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from Solveurs.fonctions import * 
+from Solveurs.fonctions import *
 
 print("OR-Tools est installé correctement !")
 
@@ -45,7 +45,7 @@ for fill_factor in fill_factors:
 
     instance_subdir = os.path.join(base_dir, f"instances/{base_instance_folder}/fillfactor_{fill_factor}")
 
-    for i in range(1, num_instances +1) : 
+    for i in range(1, num_instances +1) :
 
         instance_filename = f"{base_instance_folder}_{i:03d}.json"
         instance_path = os.path.join(instance_subdir, instance_filename)
@@ -62,7 +62,7 @@ for fill_factor in fill_factors:
             #  status_a, exec_time_a, prep_time_a = executeORTools(instance_path, display_grid=True, heuristic="IntersectionsFirst")
             #  status_b, exec_time_b, prep_time_b = executeORTools(instance_path, display_grid=True, heuristic="LongestWordsFirst")
             #  status_c, exec_time_c, prep_time_c = executeORTools(instance_path, display_grid=True, heuristic="MostIntersectionsFirst")
-            
+
         else:
              status, exec_time, prep_time = executeORTools(instance_path, display_grid=False)
              status_a, exec_time_a, prep_time_a = 0,0,0
@@ -78,9 +78,9 @@ for fill_factor in fill_factors:
         current_exec_times_c.append(exec_time_c)
         current_prep_times.append(prep_time)
 
-        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE: 
+        if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             succescount += 1
-            
+
         print(f"Instance {i}/{num_instances} - Temps exec: {exec_time:.4f}s, Statut: {status}")
 
     if current_exec_times:
@@ -102,7 +102,7 @@ for fill_factor in fill_factors:
     results['avg_exec_time_c'].append(avg_exec_time_c)
     results['avg_prep_time'].append(avg_prep_time)
     results['success_rate'].append(success_rate * 100) # En pourcentage
-    
+
     print(f"Résultats pour {fill_factor}: Taux de succès: {success_rate*100:.2f} %; Temps exec moyen: {avg_exec_time:.4f}s")
 
 # ----------------------------------------------------------------------
@@ -137,26 +137,26 @@ ax1.grid(True, linestyle='--', alpha=0.6, axis='y') # Grille pour l'axe Y des te
 # Tracé de chaque stratégie
 for key, label, color, marker in strategies:
     ax1.plot(
-        results['fill_factor'], 
-        results[key], 
-        color=color, 
-        marker=marker, 
-        linestyle='-', 
+        results['fill_factor'],
+        results[key],
+        color=color,
+        marker=marker,
+        linestyle='-',
         label=f'Temps - {label}'
     )
 
 ax1.legend(loc='upper left', frameon=True, title="Temps d'Exécution")
 
 # second axe Y pour le Taux de Succès, partageant l'axe X
-ax2 = ax1.twinx()  
+ax2 = ax1.twinx()
 color_success = 'tab:purple'
-ax2.set_ylabel('Taux de Succès (%)', color=color_success, fontweight='bold')  
+ax2.set_ylabel('Taux de Succès (%)', color=color_success, fontweight='bold')
 ax2.plot(
-    results['fill_factor'], 
-    results['success_rate'], 
-    color=color_success, 
-    marker='X', 
-    linestyle='--', 
+    results['fill_factor'],
+    results['success_rate'],
+    color=color_success,
+    marker='X',
+    linestyle='--',
     linewidth=2,
     label='Taux de Succès Global' # Note : on suppose que le taux de succès est le même pour toutes les heuristiques si basé sur 'status'
 )
@@ -166,10 +166,10 @@ ax2.legend(loc='upper right', frameon=True, title="Taux de Succès")
 
 
 plt.title(f'Performance du Solveur OR-Tools ({base_instance_folder})', fontsize=14, fontweight='bold')
-fig.tight_layout() 
+fig.tight_layout()
 
 # --- Sauvegarde du graphique dans un fichier PNG ---
-plt.savefig('performances_plot.png') 
+plt.savefig('performances_plot.png')
 print("\nGraphique sauvegardé sous : performances_plot.png")
 
 plt.show()

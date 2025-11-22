@@ -21,12 +21,12 @@ def charger_grille(fichier_json):
     """Charge une grille depuis un fichier JSON."""
     with open(fichier_json, 'r') as f:
         data = json.load(f)
-        
+
     grid = data["grid"]
     slots = data["slots"]
     intersections = data["intersections"]
     dictionary = data["dictionary"]
-    
+
     return grid, slots, intersections, dictionary
 
 def status_name(status_code):
@@ -46,48 +46,48 @@ def status_name(status_code):
 def afficher_grille_solution(grid, slots, word_vars, solver):
     """Affiche la grille résolue en utilisant les valeurs du solveur."""
     solved_grid = [list(row) for row in grid]
-    
+
     print("\n--- GRILLE RÉSOLUE ---")
-    
+
     for slot in slots:
         slot_id = slot['id']
-        start_row = slot['row'] 
-        start_col = slot['col'] 
+        start_row = slot['row']
+        start_col = slot['col']
         orientation = slot['orientation']
-        
+
         # On s'assure que le slot est dans word_vars (au cas où il ait été rendu infaisable)
         if slot_id not in word_vars:
             continue
-            
+
         word_values = [solver.Value(letter_var) for letter_var in word_vars[slot_id]]
-        
+
         # Convertit les valeurs numériques en lettres
         solved_word = "".join(
             chr(value + ord('a') - 1)
             for value in word_values
         )
-        
+
         for i, letter in enumerate(solved_word):
             row = start_row + (i if orientation == 'V' else 0)
             col = start_col + (i if orientation == 'H' else 0)
-            
+
             if 0 <= row < len(solved_grid) and 0 <= col < len(solved_grid[0]):
                  solved_grid[row][col] = letter.upper()
 
     # --- Affichage Final de la Grille ---
     num_cols = len(solved_grid[0])
-    
+
 
     print("      " + " ".join([str(i % 10) for i in range(num_cols)]))
     print("      " + "—" * (2 * num_cols - 1))
-    
+
     for r, row in enumerate(solved_grid):
         print(f"{r: <4} | " + " ".join(row))
 
 def resolveClassic(model, timeout=60.0):
     start_exec_time = time.perf_counter()
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = timeout 
+    solver.parameters.max_time_in_seconds = timeout
     status = solver.Solve(model)
     end_exec_time = time.perf_counter()
     exec_time = end_exec_time - start_exec_time
@@ -98,11 +98,11 @@ def resolveWithHeuristic(model, ordered_vars, timeout=60.0):
     start_exec_time = time.perf_counter()
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = timeout 
+    solver.parameters.max_time_in_seconds = timeout
 
 
     model.AddDecisionStrategy(
-        ordered_vars, 
+        ordered_vars,
         cp_model.CHOOSE_FIRST,  # Choisit les variables dans l'ordre fourni
         cp_model.SELECT_MIN_VALUE  # Choisit la plus petite valeur dans le domaine
     )
@@ -127,11 +127,11 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
     for slot in slots:
         slot_id = slot['id']
         slot_length = slot['length']
-        
+
         # 1.a Variables de Lettres
-        letter_vars = [model.NewIntVar(1, 26, f"letter_{slot_id}_{i}") for i in range(slot_length)] 
-        word_vars[slot_id] = letter_vars 
-        
+        letter_vars = [model.NewIntVar(1, 26, f"letter_{slot_id}_{i}") for i in range(slot_length)]
+        word_vars[slot_id] = letter_vars
+
         # 1.b Préparation des tuples valides pour ce slot
         allowed_tuples = []
         for word in dictionary:
@@ -145,7 +145,7 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
             continue
 
         allowed_tuples_by_slot[slot_id] = allowed_tuples
-        
+
     # --- 2. Ajout des Contraintes ---
 
     # --- 2.a Contrainte de mots existants dans le dictionnaire ---
@@ -167,10 +167,10 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
     end_prep_time = time.perf_counter()
     prep_time = end_prep_time - start_prep_time
 
-    
+
     if heuristic == None:
         status, exec_time, solver = resolveClassic(model, timeout=timeout)
-    elif heuristic == "IntersectionsFirst": 
+    elif heuristic == "IntersectionsFirst":
         print("Using Intersections First Heuristic")
 
         # Heuristique 1 : on commence par les variables des intersections.
@@ -184,7 +184,7 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
                 intersection_vars.add(word_vars[s1][p1 - 1])
                 intersection_vars.add(word_vars[s2][p2 - 1])
 
-        ordered_vars_1 = list(intersection_vars) 
+        ordered_vars_1 = list(intersection_vars)
         # On ajoute les variables restantes
         ordered_vars_1.extend([var for var in all_model_vars if var not in intersection_vars])
 
@@ -201,11 +201,11 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
 
         status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_2 ,timeout=timeout)
 
-    elif heuristic == "MostIntersectionsFirst": 
+    elif heuristic == "MostIntersectionsFirst":
         print("Using Most Intersections Words First Heuristic")
 
         slot_to_vars = {slot['id']: word_vars[slot['id']] for slot in slots if slot['id'] in word_vars}
-    
+
         # Heuristique 3 : mots ayant le plus d'intersections
         intersections_count = {slot['id']: 0 for slot in slots}
         for intersection in intersections:
@@ -216,10 +216,10 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
         ordered_vars_3 = [var for slot in slots_by_intersections for var in slot_to_vars.get(slot['id'], [])]
 
         status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_3 ,timeout=timeout)
-    else : 
+    else :
         print(f"Wrong heuristic name : {heuristic}, using classic resolution")
         status, exec_time, solver = resolveClassic(model, timeout=timeout)
-        
+
 
     # Affichage du statut et des temps
     print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Time Exec : {exec_time:.4f}; Time Prep : {prep_time:.4f}")
