@@ -124,13 +124,16 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
     word_vars = {} # Variables de lettres (1-26)
     allowed_tuples_by_slot = {} # "Mots" = tuples de lettres valides
 
+    SCRABBLE_POINTS = [0, 1, 3, 3, 2, 1, 4, 2, 4, 1, 8, 10, 1, 2, 1, 1, 3, 8, 1, 1, 1, 1, 4, 10, 10, 10, 10]
+    total_score_vars = []
+
     for slot in slots:
         slot_id = slot['id']
         slot_length = slot['length']
         
         # 1.a Variables de Lettres
         letter_vars = [model.NewIntVar(1, 26, f"letter_{slot_id}_{i}") for i in range(slot_length)] 
-        word_vars[slot_id] = letter_vars 
+        word_vars[slot_id] = letter_vars
         
         # 1.b Préparation des tuples valides pour ce slot
         allowed_tuples = []
@@ -138,6 +141,13 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
             if len(word) == slot_length:
                 word_values = [(ord(letter) - ord('a') + 1) for letter in word]
                 allowed_tuples.append(word_values)
+
+        # 2. Ajout de la variable de score pour chaque lettre
+        for i, letter_var in enumerate(letter_vars):
+            score_var = model.NewIntVar(0, 10, f"score_{slot_id}_{i}")
+            # Contrainte AddElement : score_var = SCRABBLE_POINTS[letter_var]
+            model.AddElement(letter_var, SCRABBLE_POINTS, score_var)
+            total_score_vars.append(score_var)
 
         if not allowed_tuples:
             print(f"ATTENTION: Aucun mot trouvé pour le slot {slot_id} (longueur {slot_length}). Problème infaisable.")
@@ -162,18 +172,24 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
         if s1 in word_vars and s2 in word_vars:
             model.Add(word_vars[s1][index_p1] == word_vars[s2][index_p2])
 
+    
 
     # --- 3. Résolution du Problème ---
     end_prep_time = time.perf_counter()
     prep_time = end_prep_time - start_prep_time
 
-    
+    # Création de la fonciton objectif
+    total_score = model.NewIntVar(0, 10000, "total_scrabble_score")
+    model.Add(total_score == sum(total_score_vars))
+    model.Maximize(total_score)
+
     if heuristic == None:
         status, exec_time, solver = resolveClassic(model, timeout=timeout)
+
+    # Heuristique 1 : on commence par les variables des intersections.
     elif heuristic == "IntersectionsFirst": 
         print("Using Intersections First Heuristic")
 
-        # Heuristique 1 : on commence par les variables des intersections.
         slot_to_vars = {slot['id']: word_vars[slot['id']] for slot in slots if slot['id'] in word_vars}
         all_model_vars = [v for slot_id in slot_to_vars for v in slot_to_vars[slot_id]]
         intersection_vars = set()
@@ -190,23 +206,23 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
 
         status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_1 ,timeout=timeout)
 
+    # Heuristique 2 : on commence par les mots les plus longs
     elif heuristic == "LongestWordsFirst":
         print("Using Longest Words First Heuristic")
 
         slot_to_vars = {slot['id']: word_vars[slot['id']] for slot in slots if slot['id'] in word_vars}
 
-        # Heuristique 2 : on commence par les mots les plus longs
         slots_by_length = sorted(slots, key=lambda s: s['length'], reverse=True)
         ordered_vars_2 = [var for slot in slots_by_length for var in slot_to_vars.get(slot['id'], [])]
 
         status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_2 ,timeout=timeout)
 
+    # Heuristique 3 : mots ayant le plus d'intersections
     elif heuristic == "MostIntersectionsFirst": 
         print("Using Most Intersections Words First Heuristic")
 
         slot_to_vars = {slot['id']: word_vars[slot['id']] for slot in slots if slot['id'] in word_vars}
     
-        # Heuristique 3 : mots ayant le plus d'intersections
         intersections_count = {slot['id']: 0 for slot in slots}
         for intersection in intersections:
             intersections_count[intersection['s1']] += 1
@@ -216,17 +232,64 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
         ordered_vars_3 = [var for slot in slots_by_intersections for var in slot_to_vars.get(slot['id'], [])]
 
         status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_3 ,timeout=timeout)
+
+    #  Heuristique 4 : On commence par slot le plus contraint, puis on explore tous les mots qui le croisent. etc
+    elif heuristic == "TopologicalOrder":
+        print("Using Topological Order Heuristic (BFS on Most Constrained Slot)")
+
+        slot_to_vars = {slot['id']: word_vars[slot['id']] for slot in slots if slot['id'] in word_vars}
+        
+        intersections_count = {slot['id']: 0 for slot in slots}
+        for intersection in intersections:
+            intersections_count[intersection['s1']] += 1
+            intersections_count[intersection['s2']] += 1
+
+        start_slot_id = max(intersections_count, key=intersections_count.get)
+        
+
+        adj = {slot['id']: set() for slot in slots}
+        for intersection in intersections:
+            adj[intersection['s1']].add(intersection['s2'])
+            adj[intersection['s2']].add(intersection['s1'])
+
+        # On ordonne les mots à explorer
+        queue = [start_slot_id]
+        visited = {start_slot_id}
+        ordered_slots = []
+        
+        while queue:
+            s_id = queue.pop(0)
+            ordered_slots.append(s_id)
+            for neighbor_id in sorted(list(adj[s_id]), key=lambda n: intersections_count.get(n, 0), reverse=True):
+                if neighbor_id not in visited:
+                    visited.add(neighbor_id)
+                    queue.append(neighbor_id)
+
+        # On en extrait les lettres (variables) ordonnées qui en découlent
+        ordered_vars_4 = [
+            var for slot_id in ordered_slots 
+            for var in (slot_to_vars.get(slot_id) or [])
+        ]
+        
+        # Sécurité : on ajoute les éventuels slots isolés
+        all_slot_ids = {slot['id'] for slot in slots}
+        remaining_slots = all_slot_ids - visited
+        for slot_id in remaining_slots:
+            ordered_vars_4.extend(slot_to_vars.get(slot_id) or [])
+
+
+        status, exec_time, solver = resolveWithHeuristic(model, ordered_vars_4, timeout=timeout)
+
     else : 
         print(f"Wrong heuristic name : {heuristic}, using classic resolution")
         status, exec_time, solver = resolveClassic(model, timeout=timeout)
         
 
     # Affichage du statut et des temps
-    print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Time Exec : {exec_time:.4f}; Time Prep : {prep_time:.4f}")
-
+    print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Score : {solver.ObjectiveValue():.0f}; Time Exec : {exec_time:.4f}; Time Prep : {prep_time:.4f}")
     # OPTIONNEL : Afficher la solution trouvée
     if (status == cp_model.OPTIMAL or status == cp_model.FEASIBLE) and display_grid:
         print("\n--- SOLUTION ---")
         afficher_grille_solution(grid, slots, word_vars, solver)
 
-    return status, exec_time, prep_time
+    return status, exec_time, prep_time, solver

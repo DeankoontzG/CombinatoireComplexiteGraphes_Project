@@ -17,9 +17,9 @@ OUTPUT_DIR = Path("instances")
 
 # Nombre d’instances à générer par catégorie
 N_INSTANCES = {
-    "small": 10,
-    "medium": 10,
-    "large": 10
+    "small": 50,
+    "medium": 50,
+    "large": 50
 }
 
 # ---------------------
@@ -534,7 +534,7 @@ def generate_benchmark():
     all_lengths = {cat: {} for cat in configs}
     num_ff = 5
 
-    for category in ["small", "medium", "large"]:
+    for category in ["small"]:
         category_path = OUTPUT_DIR / category
         category_path.mkdir(exist_ok=True)
         clean_category_directory(category_path)
@@ -544,7 +544,7 @@ def generate_benchmark():
         num_instances = N_INSTANCES[category]
         total_saved_instances = 0
 
-        for fill_factor in [0.6, 0.65, 0.7, 0.75, 0.8]:
+        for fill_factor in [0.90]:
             fill_factor_str = f"{fill_factor:.2f}"
                 
             sub_folder_name = f"fillfactor_{fill_factor_str}"
