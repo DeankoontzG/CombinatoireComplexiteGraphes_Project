@@ -1,3 +1,0 @@
-output ["w = ",show([w[s] | s in 1..S]),"\n"];
-int: S = 11;
-array [1..S] of int: w;
