@@ -171,7 +171,6 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
         index_p2 = p2 - 1
         if s1 in word_vars and s2 in word_vars:
             model.Add(word_vars[s1][index_p1] == word_vars[s2][index_p2])
-
     
 
     # --- 3. Résolution du Problème ---
