@@ -1,0 +1,50 @@
+{
+  "instance": "small_015.dzn",
+  "status": "OPTIMAL_SOLUTION",
+  "objective": 0,
+  "solutions": 1,
+  "solveTime_ms": null,
+  "flatTime_ms": 148.591,
+  "nodes": null,
+  "failures": null,
+  "propagations": null,
+  "python_total_ms": 2712.5976309998805,
+  "timeout_sec": 30,
+  "solution": {
+    "objective": 0,
+    "w": [
+      478,
+      547,
+      201,
+      1024,
+      54,
+      274,
+      1,
+      7,
+      6,
+      137,
+      35
+    ],
+    "conflict": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
