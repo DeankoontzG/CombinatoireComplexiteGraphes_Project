@@ -1,0 +1,4 @@
+
+Commande pour executer yuck : 
+
+minizinc  --verbose --solver yuck Solveurs/incomplete/v2/crossword_yuck_optimisation.mzn -d instances/small/fillfactor_0.60/small_001.dzn 
