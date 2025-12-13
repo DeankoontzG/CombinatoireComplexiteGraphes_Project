@@ -1,0 +1,50 @@
+{
+  "instance": "small_045.dzn",
+  "status": "OPTIMAL_SOLUTION",
+  "objective": 0,
+  "solutions": 1,
+  "solveTime_ms": null,
+  "flatTime_ms": 132.213,
+  "nodes": null,
+  "failures": null,
+  "propagations": null,
+  "python_total_ms": 3249.9589010003547,
+  "timeout_sec": 30,
+  "optimisation_level": 1,
+  "solver": "cbls",
+  "solution": {
+    "objective": 0,
+    "w": [
+      505,
+      400,
+      968,
+      773,
+      198,
+      1,
+      400,
+      1648,
+      1662,
+      388
+    ],
+    "conflict": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

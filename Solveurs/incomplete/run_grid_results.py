@@ -4,28 +4,41 @@ import re
 import sys
 from pathlib import Path
 
-def parse_int(name, text):
+# --- ANSI (terminal) ---
+RED = "\x1b[31;1m"
+RESET = "\x1b[0m"
+
+
+# -------------------------
+# Parsing DZN
+# -------------------------
+def parse_int(name: str, text: str):
     m = re.search(rf"\b{name}\s*=\s*(\d+)\s*;", text)
     return int(m.group(1)) if m else None
 
-def parse_array_1d(name, text):
+
+def parse_array_1d(name: str, text: str):
     m = re.search(rf"\b{name}\s*=\s*\[(.*?)\]\s*;", text, re.S)
     if not m:
         return None
     raw = m.group(1).replace("\n", " ").split(",")
     return [int(x.strip()) for x in raw if x.strip()]
 
-def parse_array3d_letter(name, text, S, maxC, maxL):
+
+def parse_array3d_letter(name: str, text: str, S: int, maxC: int, maxL: int):
     m = re.search(
         rf"\b{name}\s*=\s*array3d\s*\(.*?\[(.*?)\]\s*\)\s*;",
         text,
-        re.S
+        re.S,
     )
     if not m:
         raise ValueError(f"Impossible de trouver array3d pour {name} dans le .dzn")
+
     data = [int(x.strip()) for x in m.group(1).replace("\n", " ").split(",") if x.strip()]
-    if len(data) != S * maxC * maxL:
-        raise ValueError(f"Taille de {name} inattendue: {len(data)} valeurs pour {S}*{maxC}*{maxL}")
+    expected = S * maxC * maxL
+    if len(data) != expected:
+        raise ValueError(f"Taille de {name} inattendue: {len(data)} valeurs (attendu {expected}={S}*{maxC}*{maxL})")
+
     letter = [[[0] * maxL for _ in range(maxC)] for __ in range(S)]
     idx = 0
     for s in range(S):
@@ -35,10 +48,11 @@ def parse_array3d_letter(name, text, S, maxC, maxL):
                 idx += 1
     return letter
 
-def load_dzn(path: Path):
-    text = path.read_text()
 
-    S    = parse_int("S", text)
+def load_dzn(path: Path):
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    S = parse_int("S", text)
     maxC = parse_int("maxC", text)
     maxL = parse_int("maxL", text)
     if None in (S, maxC, maxL):
@@ -50,14 +64,12 @@ def load_dzn(path: Path):
 
     letter = parse_array3d_letter("letter", text, S, maxC, maxL)
 
-    return {
-        "S": S,
-        "maxC": maxC,
-        "maxL": maxL,
-        "L": L,
-        "letter": letter,
-    }
+    return {"S": S, "maxC": maxC, "maxL": maxL, "L": L, "letter": letter}
 
+
+# -------------------------
+# Helpers instances
+# -------------------------
 def find_instance_json(instances_root: Path, dzn_name: str) -> Path:
     json_name = Path(dzn_name).with_suffix(".json").name
     candidates = list(instances_root.rglob(json_name))
@@ -65,12 +77,27 @@ def find_instance_json(instances_root: Path, dzn_name: str) -> Path:
         raise FileNotFoundError(f"Aucun .json nommé {json_name} trouvé sous {instances_root}")
     return candidates[0]
 
+
+def find_instance_dzn(instances_root: Path, dzn_name: str) -> Path:
+    candidates = list(instances_root.rglob(dzn_name))
+    if candidates:
+        return candidates[0]
+    p = instances_root / dzn_name
+    if p.exists():
+        return p
+    raise FileNotFoundError(f"Impossible de trouver le .dzn {dzn_name} sous {instances_root}")
+
+
+# -------------------------
+# Reconstruction mots/grille
+# -------------------------
 def build_words_from_dzn_letters(dzn_data, w):
-    S      = dzn_data["S"]
-    L      = dzn_data["L"]
+    S = dzn_data["S"]
+    L = dzn_data["L"]
     letter = dzn_data["letter"]
 
-    assert len(w) == S
+    if len(w) != S:
+        raise ValueError(f"Taille w incorrecte: len(w)={len(w)} attendu S={S}")
 
     words = []
     for s in range(S):
@@ -83,52 +110,6 @@ def build_words_from_dzn_letters(dzn_data, w):
         words.append("".join(chars))
     return words
 
-def build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True):
-    """
-    Reconstruit la grille en utilisant:
-      - json_data["grid_size"] + json_data["grid"] (masque #/.)
-      - slots (row/col/orientation/length)
-      - words (un mot par slot, déjà reconstruit depuis le DZN)
-    Hypothèse: row/col dans slots sont 0-based (cohérent avec ton rendu précédent).
-    Si c'est 1-based chez toi, ajoute -1 sur row0/col0.
-    """
-    grid_size = json_data["grid_size"]
-    base = json_data["grid"]  # liste de listes de "#" / "."
-
-    if len(base) != grid_size or any(len(r) != grid_size for r in base):
-        raise ValueError("grid_size / grid incohérents dans le JSON")
-
-    # Copie de travail : '#' reste '#', '.' devient '.'
-    grid = [row[:] for row in base]
-
-    # Place les mots
-    for slot, word in zip(slots, words):
-        row0 = slot["row"]
-        col0 = slot["col"]
-        orient = slot["orientation"]  # 0 horiz, 1 vert
-        length = slot["length"]
-
-        for i in range(length):
-            r = row0 + (orient == 1) * i
-            c = col0 + (orient == 0) * i
-
-            if not (0 <= r < grid_size and 0 <= c < grid_size):
-                raise ValueError(f"Slot sort de la grille: (r={r}, c={c})")
-
-            if grid[r][c] == "#":
-                # slot qui passe dans une case noire => données incohérentes
-                raise ValueError(f"Placement sur case noire (#) en (r={r}, c={c}) pour slot={slot}")
-
-            ch = word[i]
-
-            if grid[r][c] == ".":
-                grid[r][c] = ch
-            else:
-                # déjà une lettre
-                if check_conflicts and grid[r][c] != ch:
-                    print(f"[WARN] conflit (r={r},c={c}): {grid[r][c]} vs {ch}")
-
-    return grid
 
 def is_vertical(o):
     """Interprète orientation slot: 0/1, 'H'/'V', 'across'/'down', etc."""
@@ -141,7 +122,8 @@ def is_vertical(o):
         return oo in ("v", "vert", "vertical", "down", "d")
     raise ValueError(f"Orientation inconnue: {o!r}")
 
-def detect_offset(slots, grid_size):
+
+def detect_offset(slots, grid_size: int) -> int:
     """
     Détecte si row/col sont 0-based ou 1-based.
     - si tout est dans [0, grid_size-1] -> offset=0
@@ -155,15 +137,18 @@ def detect_offset(slots, grid_size):
         return 0
     if 1 <= mn and mx <= grid_size:
         return 1
-    # fallback: si présence de 0 on suppose 0-based
     return 0
+
 
 def build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True):
     grid_size = json_data["grid_size"]
     base = json_data["grid"]
 
-    # copie de la grille de base
+    if len(base) != grid_size or any(len(r) != grid_size for r in base):
+        raise ValueError("grid_size / grid incohérents dans le JSON")
+
     grid = [row[:] for row in base]
+    conflicts = set()
 
     offset = detect_offset(slots, grid_size)
 
@@ -171,7 +156,11 @@ def build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True
         row0 = slot["row"] - offset
         col0 = slot["col"] - offset
         vert = is_vertical(slot["orientation"])
-        length = len(word)
+        length = slot.get("length", len(word))  # fallback si absent
+
+        if len(word) != length:
+            # si jamais le JSON dit length != len(word), on s'aligne sur le mot
+            length = min(length, len(word))
 
         for i in range(length):
             r = row0 + (1 if vert else 0) * i
@@ -189,41 +178,55 @@ def build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True
                 grid[r][c] = ch
             else:
                 if check_conflicts and grid[r][c] != ch:
+                    conflicts.add((r, c))
                     print(f"[WARN] conflit (r={r},c={c}): {grid[r][c]} vs {ch}")
 
-    return grid
+    return grid, conflicts
 
 
+def print_grid(grid, conflicts):
+    for r, row in enumerate(grid):
+        out = []
+        for c, ch in enumerate(row):
+            disp = " " if ch == "." else ch
+            if (r, c) in conflicts and disp != " ":
+                disp = f"{RED}{disp}{RESET}"
+            out.append(disp)
+        print(" ".join(out))
+
+
+# -------------------------
+# Main
+# -------------------------
 def main():
     root = Path(__file__).resolve().parent
 
     if len(sys.argv) > 1:
-        result_path = Path(sys.argv[1])
+        result_path = Path(sys.argv[1]).expanduser()
+        if not result_path.is_absolute():
+            result_path = (root / result_path).resolve()
     else:
         result_path = root / "results" / "small_002.json"
 
+    if not result_path.exists():
+        raise FileNotFoundError(f"Result JSON introuvable: {result_path}")
+
     metrics = json.loads(result_path.read_text(encoding="utf-8"))
 
-    if metrics.get("solution") is None:
+    sol = metrics.get("solution")
+    if sol is None:
         print("Aucune solution dans ce result.json")
         return
 
-    w = metrics["solution"]["w"]
+    if "w" not in sol:
+        raise KeyError("La solution ne contient pas la clé 'w'")
+
+    w = sol["w"]
     instance_dzn = metrics["instance"]
 
-    instances_root = root / ".." / ".." / "instances"
+    instances_root = (root / ".." / ".." / "instances").resolve()
 
-    # retrouver le .dzn
-    dzn_path = None
-    for p in instances_root.rglob(instance_dzn):
-        dzn_path = p
-        break
-    if dzn_path is None:
-        dzn_path = instances_root / instance_dzn
-
-    if not dzn_path.exists():
-        raise FileNotFoundError(f"Impossible de trouver le .dzn {instance_dzn} sous {instances_root}")
-
+    dzn_path = find_instance_dzn(instances_root, instance_dzn)
     instance_json = find_instance_json(instances_root, instance_dzn)
 
     print(f"Instance JSON utilisée : {instance_json}")
@@ -235,13 +238,12 @@ def main():
     json_data = json.loads(instance_json.read_text(encoding="utf-8"))
     slots = json_data["slots"]
 
-    grid = build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True)
+    grid, conflicts = build_grid_from_json_and_slots(json_data, slots, words, check_conflicts=True)
 
     print("\n=== GRILLE RECONSTRUITE ===\n")
-    for row in grid:
-        # Affichage: remplace '.' par espace pour lisibilité
-        print(" ".join(" " if ch == "." else ch for ch in row))
+    print_grid(grid, conflicts)
     print("\n=== FIN ===")
+
 
 if __name__ == "__main__":
     main()
