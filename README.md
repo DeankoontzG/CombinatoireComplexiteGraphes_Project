@@ -1,5 +1,3 @@
-# Résolution de Grilles de Mots Fléchés par Contraintes
-
 # Résolution de Grilles de Mots Fléchés par Contraintes (CSP)
 
 Ce projet a été réalisé dans le cadre du module de résolution de problèmes par contraintes. L'objectif est de modéliser et résoudre un problème **NP-Complet** : le remplissage de grilles de mots fléchés.
@@ -58,7 +56,7 @@ main.py
 Cette étape crée les instances de test (les grilles vides et les domaines de mots) au format JSON et DZN. Les instances sont classées par difficulté dans le dossier instances/.
 ``` python
 cd Solveur/Complete
-python OR-Tools.py
+OR-Tools.py
 ```
 
 ## 👥 Auteurs
