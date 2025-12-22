@@ -126,7 +126,7 @@ x_indices = np.arange(len(x_labels)) # [0, 1, 2]
 ff_value = str(results['fill_factor'][0]).replace('.', '_')
 fill_factor_val = results['fill_factor'][0]
 
-# --- INITIALISATION de data_metrics ---
+# --- Initialisation de data_metrics ---
 data_metrics = {}
 for name, _, _ in strategies_for_plot:
     key_suffix = name.replace(' ', '')
@@ -172,11 +172,11 @@ ax1.set_xticklabels(x_labels, rotation=0, ha="center")
 ax1.set_xlim(-0.5, len(x_indices) - 0.5)
 ax1.grid(True, linestyle='--', alpha=0.6, axis='x')
 
-# --- AXE Y1 (Principal) : NORMALISÉ (de 0 à 1) ---
+# --- AXE Y1 (Principal) : normalisé (de 0 à 1) ---
 color_normalized = 'black'
 ax1.set_ylabel('Performance Normalisée (Max = 1)', color=color_normalized, fontsize=12, weight='bold')
 ax1.set_ylim(0, 1.1)
-ax1.tick_params(axis='y', labelcolor=color_normalized) # CORRECTION : Utiliser la couleur black/normalized
+ax1.tick_params(axis='y', labelcolor=color_normalized) 
 
 # --- AXE Y2 (Conflits, Rouge) ---
 ax2 = ax1.twinx()
@@ -203,7 +203,7 @@ ax4.tick_params(axis='y', labelcolor=color_time)
 ax4.set_ylim(0, max_time * 1.1)
 
 
-# --- TRACÉ DES DONNÉES NORMALISÉES (LIGNES CONTINUES sur AX1) ---
+# --- TRACÉ DES DONNÉES NORMALISÉES (Lignes continues sur AX1) ---
 legend_handles = []
 legend_labels = []
 

@@ -4,18 +4,24 @@ import random
 from ortools.sat.python import cp_model
 import pandas as pd
 
+# ------------------------------------------
+# F1 : Nettoyage du lexique (remplacement de caractères inutilies)
+# ------------------------------------------
 def clean_lexique(char, char_replacement):
     # Charger le fichier parquet existant
     df = pd.read_parquet('../../data/lexique_filtre_cleaned.parquet')
 
-    # Vérifier les premières lignes pour comprendre la structure du DataFrame
     print(df.head())
 
-    # Remplacer les '.' par des espaces dans la colonne des mots (supposons que la colonne s'appelle 'mot')
+    # Remplacer les '.' par des espaces dans la colonne des mots
     df['ortho'] = df['ortho'].str.replace(char, char_replacement, regex=False)
 
     # Sauvegarder le DataFrame nettoyé dans un nouveau fichier parquet
     df.to_parquet('lexique_filtre_cleaned.parquet')
+
+# ------------------------------------------
+# F2 : Charger une grille depuis un JSON
+# ------------------------------------------
 
 def charger_grille(fichier_json):
     """Charge une grille depuis un fichier JSON."""
@@ -28,6 +34,10 @@ def charger_grille(fichier_json):
     dictionary = data["dictionary"]
     
     return grid, slots, intersections, dictionary
+
+# ------------------------------------------
+# F3 : Transformer le code du statut OR-Tools en texte 
+# ------------------------------------------
 
 def status_name(status_code):
     if status_code == cp_model.OPTIMAL:
@@ -42,6 +52,11 @@ def status_name(status_code):
         return "Unknown"
     else:
         return "Unknown Status"
+
+
+# ------------------------------------------
+# F4 : Permet de visualiser une grille résolue
+# ------------------------------------------
 
 def afficher_grille_solution(grid, slots, word_vars, solver):
     """Affiche la grille résolue en utilisant les valeurs du solveur."""
@@ -84,6 +99,13 @@ def afficher_grille_solution(grid, slots, word_vars, solver):
     for r, row in enumerate(solved_grid):
         print(f"{r: <4} | " + " ".join(row))
 
+# ------------------------------------------
+# F5 : Fonctions de résolution avec différentes stratégies (OR-Tools)
+# ------------------------------------------
+
+# ------------------------------------------
+# F5.a : appelle la résolution via OR-Tools (heuristique par défaut)
+# ------------------------------------------
 def resolveClassic(model, timeout=60.0):
     start_exec_time = time.perf_counter()
     solver = cp_model.CpSolver()
@@ -93,6 +115,9 @@ def resolveClassic(model, timeout=60.0):
     exec_time = end_exec_time - start_exec_time
     return status, exec_time, solver
 
+# ------------------------------------------
+# F5.b : appelle la résolution via OR-Tools - heuristiques customisées
+# ------------------------------------------
 def resolveWithHeuristic(model, ordered_vars, timeout=60.0):
 
     start_exec_time = time.perf_counter()
@@ -114,12 +139,18 @@ def resolveWithHeuristic(model, ordered_vars, timeout=60.0):
 
     return status, exec_time, solver
 
+# -------------------------------------------------------------------------------------------------------
+# F5.c : modélisation du problème, des différentes heuristiques, et appel de la résolution (F5.a ou F5.b)
+# -------------------------------------------------------------------------------------------------------
+
 def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = None):
 
     start_prep_time = time.perf_counter()
 
     model = cp_model.CpModel()
     grid, slots, intersections, dictionary = charger_grille(gridpath)
+
+    # --- 1. Définition des variables ---
 
     word_vars = {} # Variables de lettres (1-26)
     allowed_tuples_by_slot = {} # "Mots" = tuples de lettres valides
@@ -142,7 +173,7 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
                 word_values = [(ord(letter) - ord('a') + 1) for letter in word]
                 allowed_tuples.append(word_values)
 
-        # 2. Ajout de la variable de score pour chaque lettre
+        # 1.c Ajout de la variable de score pour chaque lettre
         for i, letter_var in enumerate(letter_vars):
             score_var = model.NewIntVar(0, 10, f"score_{slot_id}_{i}")
             # Contrainte AddElement : score_var = SCRABBLE_POINTS[letter_var]
@@ -286,7 +317,7 @@ def executeORTools(gridpath, display_grid = False, timeout = 60.0, heuristic = N
 
     # Affichage du statut et des temps
     print(f"{gridpath[-15:-5]} | status : {status_name(status)}; Score : {solver.ObjectiveValue():.0f}; Time Exec : {exec_time:.4f}; Time Prep : {prep_time:.4f}")
-    # OPTIONNEL : Afficher la solution trouvée
+    # Optionel : Afficher la solution trouvée
     if (status == cp_model.OPTIMAL or status == cp_model.FEASIBLE) and display_grid:
         print("\n--- SOLUTION ---")
         afficher_grille_solution(grid, slots, word_vars, solver)
