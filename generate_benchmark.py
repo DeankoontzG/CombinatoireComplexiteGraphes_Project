@@ -596,3 +596,8 @@ def generate_benchmark():
                 print(f"    Taille {size} : {count_lengths[size]} slots ({pct:.1f}%)")
             print("    " + "-" * 30)
         print("\n" + "=" * 50 + "\n")
+
+if __name__ == "__main__":
+
+    # Génération de Benchmarks
+    generate_benchmark()
