@@ -43,7 +43,7 @@ Utilisation du solveur **Yuck** basé sur la recherche locale (Constraint-Based 
 ### Génération des données
 Pour nettoyer le dataset de mots :
 ``` python
- dc data
+cd data
 python3 dataset_cleaning.py
 ```
 
