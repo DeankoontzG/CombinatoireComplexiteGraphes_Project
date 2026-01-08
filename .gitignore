@@ -1,0 +1,16 @@
+# Python - Fichiers compilés
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnements virtuels et Conda
+.venv/
+env/
+venv/
+ENV/
+conda-env/
+
+# Données et Logs
+*.log
+.DS_Store
+Thumbs.db
