@@ -24,7 +24,7 @@ Le projet est structuré de la manière suivante :
     - **`data/`** : Ressources linguistiques.
         - `dataset_cleaning.py` : Script de nettoyage du dictionnaire.
         - Fichiers de vocabulaire.
-    - **`Files_save/`** : Sauvegardes et versions alternatives des fichiers.
+    - **`archives/`** : Versions alternatives des fichiers contenant d'anciens algorithmes ou méthodes testés.
 
 ## Méthodologies de Résolution
 
@@ -43,13 +43,14 @@ Utilisation du solveur **Yuck** basé sur la recherche locale (Constraint-Based 
 ### Génération des données
 Pour nettoyer le dataset de mots :
 ``` python
- data/dataset_cleaning.py
+ dc data
+python3 dataset_cleaning.py
 ```
 
 ### Génération du Benchmark
 Cette étape crée les instances de test (les grilles vides et les domaines de mots) au format JSON et DZN. Les instances sont classées par difficulté dans le dossier instances/.
 ``` python
-main.py
+python3 main.py
 ```
 
 ### Appel de la résolution complète
@@ -60,7 +61,7 @@ Cette étape lance la résolution des instances spécifiées au début de la fon
 Pour exécuter la fonction :
 ``` python
 cd Solveur/Complete
-OR-Tools.py
+python3 OR-Tools.py
 ```
 
 ## 👥 Auteurs
