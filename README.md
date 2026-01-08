@@ -53,7 +53,9 @@ main.py
 ```
 
 ### Appel de la résolution complète
-Cette étape crée les instances de test (les grilles vides et les domaines de mots) au format JSON et DZN. Les instances sont classées par difficulté dans le dossier instances/.
+Cette étape lance la résolution des instances spécifiées au début de la fonction. Vous pouvez y modifier : 
+- *base_instance_folder*, pour choisir entre des grilles small, medium, ou large
+- *num_instances* pour choisir le nombre d'instances à résoudre (entre 1 et 50)
 ``` python
 cd Solveur/Complete
 OR-Tools.py
