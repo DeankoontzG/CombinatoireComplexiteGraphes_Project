@@ -12,8 +12,9 @@ Le problème consiste à déterminer si une grille de mots fléchés peut être 
 Le projet est structuré de la manière suivante :
 
 - **`ROOT`**
-    - `generate_benchmark.py` : Fonctions permettant de générer des instances de test de tailles variées.
-    - `main.py` : Script principal pour lancer la génération du benchmark.
+    - `generate_benchmark.py` : Script permettant de générer des instances de test de tailles variées.
+    - `requirements.txt` ; les dépendances utilisées pour faire fonctionner le projet
+    - `.gitignore`: pour ne push que les fichiers utiles
     - **`Solveur/`** : Cœur algorithmique du projet.
         - `fonctions.py` : Fonctions utilitaires (chargement JSON/DZN, parsing).
         - **`Complete/`** : Approche exacte via **OR-Tools**.
@@ -24,7 +25,6 @@ Le projet est structuré de la manière suivante :
     - **`data/`** : Ressources linguistiques.
         - `dataset_cleaning.py` : Script de nettoyage du dictionnaire.
         - Fichiers de vocabulaire.
-    - **`archives/`** : Versions alternatives des fichiers contenant d'anciens algorithmes ou méthodes testés.
 
 ## Méthodologies de Résolution
 
@@ -50,7 +50,7 @@ python3 dataset_cleaning.py
 ### Génération du Benchmark
 Cette étape crée les instances de test (les grilles vides et les domaines de mots) au format JSON et DZN. Les instances sont classées par difficulté dans le dossier instances/.
 ``` python
-python3 main.py
+python3 generate_benchmark.py
 ```
 
 ### Appel de la résolution complète
