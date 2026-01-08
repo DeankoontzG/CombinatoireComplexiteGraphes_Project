@@ -56,6 +56,7 @@ main.py
 Cette étape lance la résolution des instances spécifiées au début de la fonction. Vous pouvez y modifier au début du fichier **OR-Tools.py** : 
 - *base_instance_folder*, pour choisir entre des grilles small, medium, ou large
 - *num_instances* pour choisir le nombre d'instances à résoudre (entre 1 et 50)
+
 Pour exécuter la fonction :
 ``` python
 cd Solveur/Complete
