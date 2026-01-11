@@ -1,0 +1,16 @@
+{
+  "instance": "medium_047.dzn",
+  "status": "UNKNOWN",
+  "objective": null,
+  "solutions": 0,
+  "solveTime_ms": 29311.3,
+  "flatTime_ms": 691.4540000000001,
+  "nodes": 510472,
+  "failures": 255195,
+  "propagations": 10107519,
+  "python_total_ms": 30354.315956999926,
+  "timeout_sec": 30,
+  "optimisation_level": 1,
+  "solver": "gecode",
+  "solution": null
+}

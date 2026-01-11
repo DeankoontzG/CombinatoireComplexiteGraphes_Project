@@ -34,11 +34,14 @@ def run_mzn_api(
     solver_name: str = "yuck",
     optimisation_level: int = 1,
     timeout_sec: int = 30,
+    extra_flags: list[str] | None = None,
 ):
     model = minizinc.Model()
     model.add_file(str(model_path))
 
     solver = minizinc.Solver.lookup(solver_name)
+    if extra_flags:
+        solver.extra_flags = extra_flags  # <-- ici
 
     inst = minizinc.Instance(solver, model)
     inst.add_file(str(data_path))
@@ -70,14 +73,22 @@ def run_mzn_api(
     metrics["timeout_sec"] = timeout_sec
     metrics["optimisation_level"] = optimisation_level
     metrics["solver"] = solver_name
+    metrics["solver_flags"] = extra_flags or []
 
     metrics["solution"] = sol_to_dict(result.solution)
 
     return metrics, result
 
-def results_subdir_name(solver_name: str, optimisation_level: int, timeout_sec: int) -> str:
-    # simple, stable, filesystem-friendly
-    return f"{solver_name}_opt{optimisation_level}_t{timeout_sec}s"
+
+def results_subdir_name(
+    solver_name: str,
+    optimisation_level: int,
+    timeout_sec: int,
+    solver_flags: list[str] | None = None,
+) -> str:
+    flag_tag = flags_to_tag(solver_flags)
+    return f"{solver_name}_{flag_tag}_opt{optimisation_level}_t{timeout_sec}s"
+
 
 def save_results_json(metrics: dict, base_results_dir: Path, call_name: str, subdir: str):
     """
@@ -116,6 +127,17 @@ def collect_dzn_paths(root: Path, args) -> list[Path]:
 
     return dzns
 
+def flags_to_tag(flags: list[str] | None) -> str:
+    if not flags:
+        return "noflags"
+    clean = []
+    for f in flags:
+        f = f.lstrip("-")
+        f = f.replace("=", "_")
+        clean.append(f)
+    return "_".join(clean)
+
+
 def main():
     root = Path(__file__).resolve().parent
     model = root / "crossword_yuck_optimisation.mzn"
@@ -125,16 +147,23 @@ def main():
         print("Aucun fichier .dzn à traiter.")
         return
 
-    # paramètres de run (centralisés)
     solver_name = "yuck"
     optimisation_level = 1
     timeout_sec = 30
+
+    solver_flags = ["--restart"]  # exemple
 
     print(f">>> Modèle : {model}")
     print(f">>> {len(dzns)} instance(s) à résoudre.\n")
 
     base_results_dir = root / "results"
-    subdir = results_subdir_name(solver_name, optimisation_level, timeout_sec)
+    subdir = results_subdir_name(
+        solver_name,
+        optimisation_level,
+        timeout_sec,
+        solver_flags,
+    )
+    call_name = Path(sys.argv[0]).stem
 
     for dzn in dzns:
         print(f"\n=== Instance : {dzn} ===")
@@ -143,6 +172,7 @@ def main():
             solver_name=solver_name,
             optimisation_level=optimisation_level,
             timeout_sec=timeout_sec,
+            extra_flags=solver_flags,
         )
 
         print("\n--- METRICS ---")
@@ -152,3 +182,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

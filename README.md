@@ -37,8 +37,20 @@ Nous utilisons le solveur **CP-SAT** de Google OR-Tools.
 ### 2. Méthodes Incomplètes (Yuck / CBLS)
 Utilisation du solveur **Yuck** basé sur la recherche locale (Constraint-Based Local Search). 
 
-
 ## Utilisation
+Première étape aller dans le repertoire "incomplete" : 
+
+Commandes a lancer pour executer les solveurs : 
+    - python3 run_yuck.py ../../instances/large/fillfactor_0.80/
+
+Commande pour analyser les résultats sur le solveur yuck sur les grille medium (code adaptable pour les autres grilles)
+    - python3 analyse_results.py --recursive results/yuck_opt1_t30s/medium/
+
+Commande pour visualiser la résultat d'un instance (visualisation de la grill + erreurs de contraintes ou non )
+    - python3 run_grid_results.py results/yuck_restart_opt1_t30s/medium_001.json 
+
+Commande pour transformer les json (dataset des grilles) en format dzn compaptible minizinc : 
+    - python3 convert_json_dzn.py
 
 ### Génération des données
 Pour nettoyer le dataset de mots :

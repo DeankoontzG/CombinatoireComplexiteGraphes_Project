@@ -206,7 +206,7 @@ def main():
         if not result_path.is_absolute():
             result_path = (root / result_path).resolve()
     else:
-        result_path = root / "results" / "small_002.json"
+        result_path = root / "results/yuck_opt1_t30s/small" / "small_005.json"
 
     if not result_path.exists():
         raise FileNotFoundError(f"Result JSON introuvable: {result_path}")
